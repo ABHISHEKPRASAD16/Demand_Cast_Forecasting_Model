@@ -92,7 +92,18 @@ def test_predict_returns_422_when_history_too_short():
 
 
 def test_predict_rejects_non_positive_store_id():
-    response = client.post("/predict", json={"store_id": 0, "date": "2015-02-15"})
+    # FastAPI resolves Depends() alongside body validation rather than only
+    # after it succeeds, so the model/history dependencies still get called
+    # for this request even though it's going to fail on store_id - stub them
+    # like every other test here rather than relying on the real registry
+    # never being reached (it locally succeeds by having some model on hand,
+    # but there isn't one in a bare CI checkout).
+    _override_deps(_sufficient_history())
+    try:
+        response = client.post("/predict", json={"store_id": 0, "date": "2015-02-15"})
+    finally:
+        _clear_overrides()
+
     assert response.status_code == 422
 
 
