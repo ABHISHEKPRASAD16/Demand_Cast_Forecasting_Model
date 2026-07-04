@@ -7,3 +7,12 @@ duckdb>=1.0
 dbt-core>=1.8
 dbt-duckdb>=1.8
 kaggle>=1.6
+
+# Phase 2: modeling
+scikit-learn>=1.5
+statsmodels>=0.14
+prophet>=1.1
+lightgbm>=4.3
+torch>=2.3
+matplotlib>=3.9
+tabulate>=0.9

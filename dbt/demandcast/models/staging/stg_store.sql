@@ -2,7 +2,7 @@
 select
     cast(store as integer) as store_id,
     storetype as store_type,
-    assortment,
+    assortment as assortment,
     cast(competitiondistance as double) as competition_distance,
     cast(competitionopensincemonth as integer) as competition_open_since_month,
     cast(competitionopensinceyear as integer) as competition_open_since_year,

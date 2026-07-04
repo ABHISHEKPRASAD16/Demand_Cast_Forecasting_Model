@@ -7,5 +7,20 @@ dataset:
 
 warehouse:
   duckdb_path: "data/warehouse.duckdb"
-  staging_schema: "staging"
-  marts_schema: "marts"
+  # dbt-duckdb prefixes custom schemas with the target schema ("main"), so the
+  # schema actually created in the database is "main_staging" / "main_marts".
+  staging_schema: "main_staging"
+  marts_schema: "main_marts"
+
+modeling:
+  # Highest-volume store with zero gaps in its open-day history (942/942
+  # days) - picked so the classical/baseline models get a clean single
+  # series without needing to handle missing dates.
+  representative_store_id: 262
+  # Holds out the final N weeks as an untouched test set, shared by every
+  # model family so the comparison table is apples-to-apples. ~6 weeks
+  # mirrors Rossmann's actual Kaggle competition test window (Aug 2015).
+  test_weeks: 6
+  # Length of the validation window carved out of the training period for
+  # early stopping (LightGBM, LSTM) - never the final test holdout.
+  cv_val_weeks: 6

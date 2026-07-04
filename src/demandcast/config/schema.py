@@ -26,9 +26,16 @@ class WarehouseConfig(BaseModel):
     marts_schema: str
 
 
+class ModelingConfig(BaseModel):
+    representative_store_id: int
+    test_weeks: int = 6
+    cv_val_weeks: int = 6
+
+
 class PipelineConfig(BaseModel):
     dataset: DatasetConfig
     warehouse: WarehouseConfig
+    modeling: ModelingConfig
 
 
 def load_config(path: Path | None = None) -> PipelineConfig:
