@@ -41,6 +41,9 @@ mlflow.db-*
 # Evidently drift reports (self-contained HTML, regenerated via `make drift-report`)
 reports/drift/*.html
 
+# RAG vector store (regenerated via `make build-vectorstore`)
+data/vectorstore/
+
 # Env / secrets
 .env
 .env.*

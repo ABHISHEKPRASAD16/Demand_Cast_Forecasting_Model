@@ -1,4 +1,4 @@
-.PHONY: install install-dev format lint test build ingest dbt-run dbt-test dbt-docs compare train-lightgbm train-lstm drift-report mlflow-ui serve docker-build docker-up docker-down clean
+.PHONY: install install-dev format lint test build ingest dbt-run dbt-test dbt-docs compare train-lightgbm train-lstm drift-report mlflow-ui serve docker-build docker-up docker-down build-vectorstore dashboard clean
 
 install:
 	pip install -r requirements.txt
@@ -62,6 +62,12 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+build-vectorstore:
+	python -m demandcast.agent.vectorstore
+
+dashboard:
+	streamlit run src/demandcast/dashboard/app.py
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
