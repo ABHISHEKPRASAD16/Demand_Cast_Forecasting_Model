@@ -1,6 +1,14 @@
 import pandas as pd
+import pytest
 
-from demandcast.features.engineering import LAG_DAYS, ROLLING_WINDOWS, build_features
+from demandcast.features.engineering import (
+    FEATURE_COLUMNS,
+    LAG_DAYS,
+    MIN_HISTORY_DAYS,
+    ROLLING_WINDOWS,
+    build_features,
+    build_features_for_prediction,
+)
 
 
 def _synthetic_df(n_days: int = 40, store_ids=(1, 2)) -> pd.DataFrame:
@@ -73,3 +81,39 @@ def test_lag_features_do_not_leak_across_stores():
     store_1_lags = result.df.loc[result.df["store_id"] == "1", "lag_7"]
     store_2_lags = result.df.loc[result.df["store_id"] == "2", "lag_7"]
     assert store_1_lags.max() < store_2_lags.min()
+
+
+def test_build_features_for_prediction_matches_training_pipeline():
+    df = _synthetic_df(n_days=40, store_ids=(1,))
+    trained = build_features(df)
+
+    target_date = pd.Timestamp("2015-02-08")
+    target_row = trained.df[trained.df["sale_date"] == target_date].iloc[0]
+    history = df[df["sale_date"] < target_date]
+
+    served = build_features_for_prediction(
+        history,
+        target_date=target_date,
+        is_promo=bool(target_row["is_promo"]),
+        is_school_holiday=bool(target_row["is_school_holiday"]),
+        state_holiday=str(target_row["state_holiday"]),
+    )
+
+    assert len(served) == 1
+    for col in FEATURE_COLUMNS:
+        assert served.iloc[0][col] == target_row[col], f"mismatch on {col}"
+
+
+def test_build_features_for_prediction_raises_on_insufficient_history():
+    df = _synthetic_df(n_days=10, store_ids=(1,))
+    with pytest.raises(ValueError, match="at least"):
+        build_features_for_prediction(
+            df,
+            target_date=pd.Timestamp("2015-01-11"),
+            is_promo=False,
+            is_school_holiday=False,
+        )
+
+
+def test_build_features_for_prediction_min_history_days_matches_lookback():
+    assert max(max(LAG_DAYS), max(ROLLING_WINDOWS)) == MIN_HISTORY_DAYS

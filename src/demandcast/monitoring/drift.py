@@ -17,7 +17,6 @@ the shift between what the model learned from and what it was evaluated on?
 import logging
 from pathlib import Path
 
-import mlflow
 import pandas as pd
 from evidently import DataDefinition, Dataset, Regression, Report
 from evidently.presets import DataDriftPreset, RegressionPreset
@@ -25,12 +24,11 @@ from evidently.presets import DataDriftPreset, RegressionPreset
 from demandcast.data import load_fct_sales
 from demandcast.evaluation.splits import train_test_split_by_date
 from demandcast.features.engineering import FeatureSet, build_features
+from demandcast.registry import load_latest_model
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-MLFLOW_TRACKING_URI = "sqlite:///mlflow.db"
-MODEL_NAME = "demandcast-lightgbm"
 REPORTS_DIR = Path(__file__).resolve().parents[3] / "reports" / "drift"
 REFERENCE_SAMPLE_SIZE = 50_000
 
@@ -52,20 +50,6 @@ CATEGORICAL_DRIFT_COLUMNS = [
     "store_type",
     "assortment",
 ]
-
-
-def load_latest_model(tracking_uri: str = MLFLOW_TRACKING_URI, model_name: str = MODEL_NAME):
-    mlflow.set_tracking_uri(tracking_uri)
-    client = mlflow.MlflowClient()
-    versions = client.search_model_versions(f"name='{model_name}'")
-    if not versions:
-        raise RuntimeError(
-            f"No registered versions of '{model_name}' found - run "
-            "`python -m demandcast.training.train --config config/models/lightgbm.yaml` first."
-        )
-    latest = max(versions, key=lambda v: int(v.version))
-    logger.info("Loading %s version %s from the registry", model_name, latest.version)
-    return mlflow.lightgbm.load_model(f"models:/{model_name}/{latest.version}")
 
 
 def build_reference_and_current(
