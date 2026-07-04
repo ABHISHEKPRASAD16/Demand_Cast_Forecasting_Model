@@ -1,0 +1,20 @@
+# Slim dependency set for the hosted (Forecast-tab-only) Streamlit Cloud
+# deployment. Streamlit Community Cloud looks for a requirements.txt in the
+# entrypoint's own directory before falling back to the repo root, so this
+# file - not the root requirements.txt - is what the hosted deploy installs.
+#
+# Deliberately excludes the training/pipeline stack (torch, prophet, dbt,
+# kaggle, great-expectations, evidently) and the AI Analyst stack (langchain,
+# langchain-anthropic, langchain-chroma, langchain-huggingface,
+# sentence-transformers) - neither is needed with DEMANDCAST_SHOW_AI_ANALYST
+# unset/false, and both would make the build far slower and heavier for no
+# benefit on this deployment. See requirements.txt for the full dev/pipeline
+# set used locally.
+streamlit>=1.38
+plotly>=5.20
+pandas>=2.2
+pydantic>=2.7
+pyyaml>=6.0
+duckdb>=1.0
+lightgbm>=4.3
+mlflow>=3.0
