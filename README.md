@@ -4,6 +4,8 @@ Production-grade demand forecasting and AI insights platform. Ingests retail sal
 
 Dataset: [Rossmann Store Sales](https://www.kaggle.com/competitions/rossmann-store-sales) (Kaggle) — daily sales for 1,115 stores.
 
+**Live demo (Forecast tab only):** [demandcastforecastingmodel-cd.streamlit.app](https://demandcastforecastingmodel-cd.streamlit.app/) — store picker, historical sales chart, and promo/holiday scenario forecasting, backed by the registered LightGBM model. The AI Analyst chat tab isn't part of this hosted deployment (it needs a live Anthropic API key and a running forecast API); run the full app locally per the [Quickstart](#quickstart) to try that.
+
 ## Architecture
 
 _Diagram to be added once Phase 4 (serving) exists._
