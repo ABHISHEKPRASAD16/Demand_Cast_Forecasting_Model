@@ -8,8 +8,9 @@ models:
         data_tests:
           - not_null
           - relationships:
-              to: ref('stg_store')
-              field: store_id
+              arguments:
+                to: ref('stg_store')
+                field: store_id
       - name: sale_date
         data_tests:
           - not_null
@@ -18,9 +19,10 @@ models:
           - not_null
     data_tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - store_id
-            - sale_date
+          arguments:
+            combination_of_columns:
+              - store_id
+              - sale_date
 
   - name: stg_store
     description: Typed, renamed store attributes, one row per store.

@@ -7,8 +7,8 @@ sources:
       - name: train
         description: Daily sales per store, one row per store-date.
         meta:
-          external_location: "{{ var('raw_data_dir') }}/train.csv"
+          external_location: "read_csv('{{ var('raw_data_dir') }}/train.csv', sample_size=-1)"
       - name: store
         description: Store attributes (type, assortment, competition, promo2).
         meta:
-          external_location: "{{ var('raw_data_dir') }}/store.csv"
+          external_location: "read_csv('{{ var('raw_data_dir') }}/store.csv', sample_size=-1)"
