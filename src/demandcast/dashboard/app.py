@@ -10,25 +10,44 @@ demonstrates agent tool-use across a service boundary; it needs
 `make serve` running in another terminal, plus ANTHROPIC_API_KEY set.
 """
 
-import pandas as pd
-import plotly.graph_objects as go
-import streamlit as st
+import os
+import sys
+from pathlib import Path
 
-from demandcast.agent.agent import ask, build_agent
-from demandcast.data import get_sale_date_bounds, list_store_ids, load_fct_sales
-from demandcast.registry import load_latest_model
-from demandcast.serving.inference import get_store_history, predict_sales
-from demandcast.serving.schemas import PredictRequest
+# Streamlit Community Cloud only installs whatever's in requirements.txt - it
+# doesn't run `pip install -e .` for this repo, so `demandcast` isn't
+# importable as a package unless we put its parent (src/) on sys.path
+# ourselves. Local dev doesn't hit this because `pip install -e .` already
+# makes it importable there, but this fix is harmless either way.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+import pandas as pd  # noqa: E402
+import plotly.graph_objects as go  # noqa: E402
+import streamlit as st  # noqa: E402
+
+from demandcast.data import get_sale_date_bounds, list_store_ids, load_fct_sales  # noqa: E402
+from demandcast.registry import load_production_model  # noqa: E402
+from demandcast.serving.inference import get_store_history, predict_sales  # noqa: E402
+from demandcast.serving.schemas import PredictRequest  # noqa: E402
 
 st.set_page_config(page_title="DemandCast", layout="wide")
 st.title("DemandCast")
 
 FORECAST_HORIZON_DAYS = 42  # matches the test_weeks=6 holdout used everywhere else
 
+# Off for the hosted (Forecast-tab-only) deployment via Streamlit secrets/env -
+# the chat tab needs ANTHROPIC_API_KEY and, for its forecast tool, a running
+# FastAPI service, neither of which exist on that deployment.
+SHOW_AI_ANALYST = os.environ.get("DEMANDCAST_SHOW_AI_ANALYST", "true").lower() not in (
+    "false",
+    "0",
+)
+
 
 @st.cache_resource
 def _cached_model():
-    return load_latest_model()
+    model, _version = load_production_model()
+    return model
 
 
 @st.cache_data
@@ -46,7 +65,10 @@ def _cached_history(store_id: int) -> pd.DataFrame:
     return load_fct_sales(store_id=store_id)
 
 
-tab_forecast, tab_chat = st.tabs(["Forecast", "AI Analyst"])
+if SHOW_AI_ANALYST:
+    tab_forecast, tab_chat = st.tabs(["Forecast", "AI Analyst"])
+else:
+    tab_forecast, tab_chat = st.container(), None
 
 with tab_forecast:
     store_ids = _cached_store_ids()
@@ -111,41 +133,47 @@ with tab_forecast:
                     f"Manually adjusted ({manual_adjustment_pct:+d}%)", f"{adjusted:,.0f}"
                 )
 
-with tab_chat:
-    st.caption(
-        "Needs the forecast API running separately (`make serve`) and "
-        "ANTHROPIC_API_KEY set in the environment."
-    )
+if SHOW_AI_ANALYST:
+    with tab_chat:
+        # Lazy import: langchain/chroma/sentence-transformers are heavy and
+        # aren't even installed on the slim hosted (Forecast-tab-only) deploy,
+        # so this must not be a top-level import.
+        from demandcast.agent.agent import ask, build_agent
 
-    if "agent" not in st.session_state:
-        try:
-            st.session_state.agent = build_agent()
-            st.session_state.agent_error = None
-        except Exception as exc:  # noqa: BLE001 - surfaced to the user, not swallowed
-            st.session_state.agent = None
-            st.session_state.agent_error = str(exc)
+        st.caption(
+            "Needs the forecast API running separately (`make serve`) and "
+            "ANTHROPIC_API_KEY set in the environment."
+        )
 
-    if st.session_state.agent_error:
-        st.error(f"AI Analyst agent unavailable: {st.session_state.agent_error}")
-    else:
-        if "chat_history" not in st.session_state:
-            st.session_state.chat_history = []
+        if "agent" not in st.session_state:
+            try:
+                st.session_state.agent = build_agent()
+                st.session_state.agent_error = None
+            except Exception as exc:  # noqa: BLE001 - surfaced to the user, not swallowed
+                st.session_state.agent = None
+                st.session_state.agent_error = str(exc)
 
-        for role, content in st.session_state.chat_history:
-            with st.chat_message(role):
-                st.write(content)
+        if st.session_state.agent_error:
+            st.error(f"AI Analyst agent unavailable: {st.session_state.agent_error}")
+        else:
+            if "chat_history" not in st.session_state:
+                st.session_state.chat_history = []
 
-        question = st.chat_input("Ask about DemandCast's models, metrics, or a store's sales")
-        if question:
-            st.session_state.chat_history.append(("user", question))
-            with st.chat_message("user"):
-                st.write(question)
+            for role, content in st.session_state.chat_history:
+                with st.chat_message(role):
+                    st.write(content)
 
-            with st.chat_message("assistant"):
-                with st.spinner("Thinking..."):
-                    try:
-                        answer = ask(st.session_state.agent, question)
-                    except Exception as exc:  # noqa: BLE001 - shown to the user, not swallowed
-                        answer = f"Something went wrong answering that: {exc}"
-                st.write(answer)
-            st.session_state.chat_history.append(("assistant", answer))
+            question = st.chat_input("Ask about DemandCast's models, metrics, or a store's sales")
+            if question:
+                st.session_state.chat_history.append(("user", question))
+                with st.chat_message("user"):
+                    st.write(question)
+
+                with st.chat_message("assistant"):
+                    with st.spinner("Thinking..."):
+                        try:
+                            answer = ask(st.session_state.agent, question)
+                        except Exception as exc:  # noqa: BLE001 - shown to the user, not swallowed
+                            answer = f"Something went wrong answering that: {exc}"
+                    st.write(answer)
+                st.session_state.chat_history.append(("assistant", answer))

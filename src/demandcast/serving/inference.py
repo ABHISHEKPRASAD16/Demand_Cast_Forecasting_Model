@@ -13,7 +13,7 @@ import pandas as pd
 
 from demandcast.data import load_fct_sales
 from demandcast.features.engineering import build_features_for_prediction
-from demandcast.registry import MLFLOW_TRACKING_URI, get_latest_model_version, load_latest_model
+from demandcast.registry import MLFLOW_TRACKING_URI, get_latest_model_version, load_production_model
 from demandcast.serving.schemas import PredictRequest
 
 logger = logging.getLogger(__name__)
@@ -27,9 +27,7 @@ LOOKBACK_DAYS = 45
 
 @lru_cache(maxsize=1)
 def _cached_model_and_version() -> tuple:
-    version_info = get_latest_model_version()
-    model = load_latest_model()
-    return model, str(version_info.version)
+    return load_production_model()
 
 
 def get_model():

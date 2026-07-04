@@ -25,6 +25,12 @@ data/marts/*
 !data/marts/.gitkeep
 *.duckdb
 *.duckdb.wal
+# Deliberate exception: a frozen snapshot committed for the hosted Streamlit
+# Cloud demo (Forecast tab only), since that deployment gets a fresh clone
+# with no local dbt-built warehouse. Regenerate via the README's dbt steps
+# if it drifts from the real pipeline output; this is a snapshot, not a
+# substitute for actually running dbt.
+!data/warehouse.duckdb
 
 # dbt
 dbt/demandcast/target/
