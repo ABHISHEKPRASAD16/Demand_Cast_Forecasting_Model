@@ -1,0 +1,15 @@
+# Local/portfolio setup: the DuckDB warehouse and MLflow's SQLite backend
+# are just files on disk, so they're mounted straight into the container
+# rather than run as separate services. A real deployment would put these
+# behind a shared Postgres-backed MLflow server and object storage instead
+# of file mounts tied to one host.
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data:ro
+      - ./mlflow.db:/app/mlflow.db
+      - ./mlruns:/app/mlruns
+    restart: unless-stopped

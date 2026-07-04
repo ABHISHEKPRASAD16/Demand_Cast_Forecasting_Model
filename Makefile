@@ -1,4 +1,4 @@
-.PHONY: install install-dev format lint test build ingest dbt-run dbt-test dbt-docs compare train-lightgbm train-lstm drift-report mlflow-ui clean
+.PHONY: install install-dev format lint test build ingest dbt-run dbt-test dbt-docs compare train-lightgbm train-lstm drift-report mlflow-ui serve docker-build docker-up docker-down clean
 
 install:
 	pip install -r requirements.txt
@@ -50,6 +50,18 @@ drift-report:
 
 mlflow-ui:
 	mlflow ui --backend-store-uri sqlite:///mlflow.db
+
+serve:
+	uvicorn demandcast.serving.main:app --reload
+
+docker-build:
+	docker compose build
+
+docker-up:
+	docker compose up
+
+docker-down:
+	docker compose down
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +

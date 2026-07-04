@@ -17,7 +17,7 @@ Kaggle CSVs → data/raw → dbt (staging → marts) → DuckDB warehouse → [m
 - [x] **Phase 1 — Data pipeline**: raw/staging/marts layering with dbt + DuckDB, source-level tests, documented lineage.
 - [x] **Phase 2 — Modeling**: naive/seasonal-naive baselines → ARIMA/Prophet → global LightGBM → global LSTM, with a MAPE/RMSE/WAPE comparison table.
 - [x] **Phase 3 — MLOps**: MLflow tracking + registry, config-driven training, Great Expectations input validation, Evidently drift monitoring, pytest CI + build.
-- [ ] **Phase 4 — Serving**: FastAPI predict/metadata/health endpoints, Docker + docker-compose.
+- [x] **Phase 4 — Serving**: FastAPI predict/metadata/health endpoints, Docker + docker-compose.
 - [ ] **Phase 5 — AI Analyst**: Streamlit scenario dashboard, LangChain RAG agent over model docs/metrics/forecasts with citations and guardrails.
 
 ## Quickstart
@@ -120,6 +120,34 @@ python -m demandcast.monitoring.drift   # writes reports/drift/drift_report.html
 
 The report is self-contained HTML (~4MB) and gitignored rather than versioned like Phase 2's comparison table — it's regenerated on demand, not a number worth diffing in git history.
 
+## Phase 4 — Serving
+
+```bash
+uvicorn demandcast.serving.main:app --reload   # or: make serve
+```
+
+- `GET /health` — liveness check.
+- `GET /model/metadata` — the currently registered LightGBM version, its MLflow run id, and its training-time test metrics.
+- `POST /predict` — forecast sales for one `(store_id, date)`:
+
+  ```bash
+  curl -X POST localhost:8000/predict -H "Content-Type: application/json" \
+    -d '{"store_id": 262, "date": "2015-08-01", "is_promo": true}'
+  ```
+
+**Why a bare `(store_id, date)` isn't enough on its own:** the model was trained on lag/rolling features (last-7/14/28-day sales, rolling mean/std), so predicting requires that store's recent history, not just the request payload. `/predict` pulls the store's trailing ~45 days from the DuckDB warehouse and runs them through [`build_features_for_prediction`](src/demandcast/features/engineering.py), the same lag/rolling/calendar logic `build_features` uses at training time, just applied to one store's window instead of the whole panel — verified with a test asserting the two paths produce identical features for the same row. Only `is_promo`/`is_school_holiday`/`state_holiday` come from the request itself, since those are calendar/business facts the caller would know in advance, not something in the historical data.
+
+The model, its version, and the history-fetching logic are all `Depends()`-injected, so [tests/test_serving.py](tests/test_serving.py) overrides them with stubs — no real warehouse or MLflow registry needed to run the test suite (CI has neither).
+
+### Docker
+
+```bash
+make docker-build
+make docker-up      # API at localhost:8000
+```
+
+**Known limitation:** local MLflow's file-based artifact store bakes the *absolute host path* into each run (`file:///…/mlruns/…`), not a relative or container-portable one. A model registered by running training directly on the host will fail to load inside the container, since that absolute path doesn't exist there. This isn't a bug in this repo's code — it's inherent to a local, non-server MLflow setup; the real fix is a proper MLflow Tracking Server backed by an object store (S3/Azure Blob) with location-independent artifact URIs, which is the natural next step before any real deployment. Docker itself wasn't available in the environment this was built in, so the image/compose file are written to the same standards as everything else here but not build-verified end-to-end — flagging that plainly rather than claiming otherwise.
+
 ## Project layout
 
 ```
@@ -133,6 +161,8 @@ src/demandcast/
   validation/       # Great Expectations gate for fct_sales, pre-training
   training/         # config-driven training entrypoint + MLflow logging
   monitoring/       # Evidently drift report against the registered model
+  serving/          # FastAPI app: predict / model metadata / health
+  registry.py       # shared MLflow Model Registry loader (drift + serving)
 dbt/demandcast/     # dbt project: staging + marts models, source/model tests
 config/             # YAML config, validated via pydantic (src/demandcast/config, training/config)
 data/               # raw/staging/marts + warehouse.duckdb (gitignored, pulled/generated)
@@ -140,6 +170,7 @@ notebooks/          # EDA only — no pipeline logic lives here
 reports/            # model_comparison.csv/.md (versioned) + drift/*.html (gitignored, regenerated)
 tests/              # pytest unit/integration tests
 mlflow.db           # local MLflow tracking store (gitignored, created on first training run)
+Dockerfile, docker-compose.yml, requirements-serving.txt   # the API's slim runtime image
 ```
 
 ## Why this project
