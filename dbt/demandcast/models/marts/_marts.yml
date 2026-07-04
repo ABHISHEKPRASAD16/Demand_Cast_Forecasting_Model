@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: fct_sales
+    description: Analysis-ready sales fact, one row per store-date, joined with store attributes.
+    columns:
+      - name: store_id
+        data_tests:
+          - not_null
+      - name: sale_date
+        data_tests:
+          - not_null
+      - name: sales
+        data_tests:
+          - not_null
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - store_id
+            - sale_date

@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Raw Rossmann CSVs, read directly off disk via dbt-duckdb external_location.
+    tables:
+      - name: train
+        description: Daily sales per store, one row per store-date.
+        meta:
+          external_location: "{{ var('raw_data_dir') }}/train.csv"
+      - name: store
+        description: Store attributes (type, assortment, competition, promo2).
+        meta:
+          external_location: "{{ var('raw_data_dir') }}/store.csv"

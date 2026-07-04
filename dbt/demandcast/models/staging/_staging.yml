@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: stg_train
+    description: Typed, renamed daily sales records, one row per store-date.
+    columns:
+      - name: store_id
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_store')
+              field: store_id
+      - name: sale_date
+        data_tests:
+          - not_null
+      - name: sales
+        data_tests:
+          - not_null
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - store_id
+            - sale_date
+
+  - name: stg_store
+    description: Typed, renamed store attributes, one row per store.
+    columns:
+      - name: store_id
+        data_tests:
+          - not_null
+          - unique

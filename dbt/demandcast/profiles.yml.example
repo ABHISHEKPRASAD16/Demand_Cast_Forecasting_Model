@@ -1,0 +1,9 @@
+# Copy to ~/.dbt/profiles.yml, or set DBT_PROFILES_DIR to this dbt/demandcast
+# directory, so dbt can find it as profiles.yml.
+demandcast:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "../../data/warehouse.duckdb"
+      threads: 4

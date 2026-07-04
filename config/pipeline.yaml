@@ -1,0 +1,11 @@
+dataset:
+  kaggle_slug: "pratyushakar/rossmann-store-sales"
+  raw_dir: "data/raw"
+  required_files:
+    - "train.csv"
+    - "store.csv"
+
+warehouse:
+  duckdb_path: "data/warehouse.duckdb"
+  staging_schema: "staging"
+  marts_schema: "marts"
