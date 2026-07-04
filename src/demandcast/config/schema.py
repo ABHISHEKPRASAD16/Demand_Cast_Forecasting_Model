@@ -5,12 +5,18 @@ scattered through the codebase) turns a typo'd YAML key into a startup
 error instead of a silent None deep in a pipeline run.
 """
 
+import os
 from pathlib import Path
 
 import yaml
 from pydantic import BaseModel, Field
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+# Every entrypoint in this project (Makefile targets, README commands, the
+# Docker image's WORKDIR) is run with the repo root as cwd, so that's the
+# right default - unlike `__file__`-relative traversal, it still resolves
+# correctly once the package is pip-installed non-editably (e.g. in Docker),
+# where the installed file's parents no longer line up with the repo layout.
+PROJECT_ROOT = Path(os.environ.get("DEMANDCAST_PROJECT_ROOT", Path.cwd()))
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "pipeline.yaml"
 
 
