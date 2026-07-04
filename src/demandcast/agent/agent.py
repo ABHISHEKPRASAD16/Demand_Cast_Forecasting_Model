@@ -5,11 +5,14 @@ with the guardrails from guardrails.py applied to every response.
 
 import os
 
+from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_anthropic import ChatAnthropic
 
 from demandcast.agent.guardrails import SYSTEM_PROMPT, apply_output_guardrails
 from demandcast.agent.tools import DEFAULT_API_BASE_URL, build_forecast_tool, build_retriever_tool
+
+load_dotenv()  # picks up ANTHROPIC_API_KEY from a local .env, if present
 
 DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
 

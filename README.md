@@ -18,7 +18,7 @@ Kaggle CSVs → data/raw → dbt (staging → marts) → DuckDB warehouse → [m
 - [x] **Phase 2 — Modeling**: naive/seasonal-naive baselines → ARIMA/Prophet → global LightGBM → global LSTM, with a MAPE/RMSE/WAPE comparison table.
 - [x] **Phase 3 — MLOps**: MLflow tracking + registry, config-driven training, Great Expectations input validation, Evidently drift monitoring, pytest CI + build.
 - [x] **Phase 4 — Serving**: FastAPI predict/metadata/health endpoints, Docker + docker-compose.
-- [ ] **Phase 5 — AI Analyst**: Streamlit scenario dashboard, LangChain RAG agent over model docs/metrics/forecasts with citations and guardrails.
+- [x] **Phase 5 — AI Analyst**: Streamlit scenario dashboard, LangChain RAG agent over model docs/metrics/forecasts with citations and guardrails.
 
 ## Quickstart
 
@@ -58,6 +58,15 @@ This builds `staging.stg_train`, `staging.stg_store`, and `marts.fct_sales` in `
 ```bash
 pytest
 ```
+
+### 5. (Optional) Set up the AI Analyst
+
+```bash
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env   # gitignored, never committed
+make build-vectorstore
+```
+
+See the [Phase 5](#phase-5--ai-analyst) section below for what this unlocks.
 
 ## Phase 2 results
 
@@ -148,6 +157,35 @@ make docker-up      # API at localhost:8000
 
 **Known limitation:** local MLflow's file-based artifact store bakes the *absolute host path* into each run (`file:///…/mlruns/…`), not a relative or container-portable one. A model registered by running training directly on the host will fail to load inside the container, since that absolute path doesn't exist there. This isn't a bug in this repo's code — it's inherent to a local, non-server MLflow setup; the real fix is a proper MLflow Tracking Server backed by an object store (S3/Azure Blob) with location-independent artifact URIs, which is the natural next step before any real deployment. Docker itself wasn't available in the environment this was built in, so the image/compose file are written to the same standards as everything else here but not build-verified end-to-end — flagging that plainly rather than claiming otherwise.
 
+## Phase 5 — AI Analyst
+
+Three genuinely new pieces on top of the models/API from Phases 2-4: a RAG knowledge base, an agent that reasons over it and can call the live forecast API, and a dashboard putting both in front of a user.
+
+**Knowledge base** ([knowledge/](knowledge/) + [agent/knowledge.py](src/demandcast/agent/knowledge.py)): three curated markdown docs (metric definitions, model design decisions, architecture) plus generated per-store-month insight blurbs (total/average sales, promo/holiday day counts, month-over-month change) computed from `fct_sales` for 10 high-volume stores — the flagship store 262 plus the next 9 — rather than the full 1,115-store panel, to keep the demo corpus and rebuild time reasonable.
+
+**Vector store** ([agent/vectorstore.py](src/demandcast/agent/vectorstore.py)): the knowledge base is embedded locally via sentence-transformers (`all-MiniLM-L6-v2`) into a persisted Chroma store — no API key or network call needed for indexing or retrieval, only the agent's own reasoning needs one. Build it with:
+
+```bash
+make build-vectorstore
+```
+
+**Agent** ([agent/agent.py](src/demandcast/agent/agent.py), [agent/tools.py](src/demandcast/agent/tools.py)): Claude (via LangChain's `create_agent`, the LangGraph-based agent API in LangChain 1.x) with two tools — retrieval over the vector store, and a live call to `POST /predict` for "what if" scenario questions. Needs `ANTHROPIC_API_KEY` set and the forecast API running (`make serve`).
+
+**Guardrails** (AI security, documented honestly rather than oversold — see [agent/guardrails.py](src/demandcast/agent/guardrails.py)):
+1. **Tool scoping is the real defense.** The agent can only retrieve from our own vector store or call our own pydantic-validated `/predict` endpoint — there's no shell, filesystem, or general-network tool for a successful injection to escalate into.
+2. A system prompt instructing the model to treat retrieved documents and tool outputs as *data*, never as instructions, and to stay in scope.
+3. A lightweight output scan (`apply_output_guardrails`) catching a system-prompt leak or an obviously-injected secret-like string before an answer reaches the user.
+
+This is an honest, modest set of layers appropriate for a first-party knowledge base (not scraped or user-uploaded content) — not a claim of being unjailbreakable. What's actually verified: the forecast tool's request/response/error handling, the output guardrail's leak/secret/length checks, and agent construction wiring, all without a live key. Whether Claude itself resists a real injection attempt end-to-end hasn't been live-tested — that needs a real `ANTHROPIC_API_KEY`, which wasn't available while building this.
+
+**Dashboard** ([dashboard/app.py](src/demandcast/dashboard/app.py)):
+
+```bash
+make dashboard   # localhost:8501
+```
+
+A "Forecast" tab (store picker, historical sales chart, promo/school-holiday toggles backed by the real model, plus a manual percentage-adjustment slider explicitly labeled as a non-model-driven override) and an "AI Analyst" chat tab embedding the agent above. The Forecast tab predicts in-process (same functions the API uses); the AI Analyst tab's forecast tool calls the live HTTP API instead, since that's what actually demonstrates agent tool-use across a service boundary. Manually verified against real data: toggling the promo switch moved the prediction from 17,855 to 19,752, exactly matching an earlier direct `/predict` call with the same inputs — confirming the two prediction paths agree. The AI Analyst tab was also confirmed to degrade gracefully without a real API key: the agent constructs fine, and a missing-auth error on the first message is caught and shown in the chat rather than crashing the page.
+
 ## Project layout
 
 ```
@@ -162,10 +200,13 @@ src/demandcast/
   training/         # config-driven training entrypoint + MLflow logging
   monitoring/       # Evidently drift report against the registered model
   serving/          # FastAPI app: predict / model metadata / health
+  agent/            # RAG knowledge base, vector store, Claude agent + tools, guardrails
+  dashboard/        # Streamlit app: forecast scenarios + AI Analyst chat
   registry.py       # shared MLflow Model Registry loader (drift + serving)
 dbt/demandcast/     # dbt project: staging + marts models, source/model tests
 config/             # YAML config, validated via pydantic (src/demandcast/config, training/config)
-data/               # raw/staging/marts + warehouse.duckdb (gitignored, pulled/generated)
+knowledge/          # curated markdown docs embedded into the RAG vector store
+data/               # raw/staging/marts + warehouse.duckdb + vectorstore/ (all gitignored, generated)
 notebooks/          # EDA only — no pipeline logic lives here
 reports/            # model_comparison.csv/.md (versioned) + drift/*.html (gitignored, regenerated)
 tests/              # pytest unit/integration tests
