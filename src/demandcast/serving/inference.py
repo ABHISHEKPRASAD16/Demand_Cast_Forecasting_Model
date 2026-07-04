@@ -29,7 +29,7 @@ LOOKBACK_DAYS = 45
 def _cached_model_and_version() -> tuple:
     version_info = get_latest_model_version()
     model = load_latest_model()
-    return model, version_info.version
+    return model, str(version_info.version)
 
 
 def get_model():
@@ -64,7 +64,7 @@ def get_model_metadata() -> dict:
     run = mlflow.get_run(version_info.run_id)
     return {
         "model_name": version_info.name,
-        "model_version": version_info.version,
+        "model_version": str(version_info.version),
         "run_id": version_info.run_id,
         "metrics": dict(run.data.metrics),
     }
