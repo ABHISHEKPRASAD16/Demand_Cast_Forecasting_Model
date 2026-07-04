@@ -1,4 +1,4 @@
-.PHONY: install install-dev format lint test ingest dbt-run dbt-test dbt-docs compare clean
+.PHONY: install install-dev format lint test build ingest dbt-run dbt-test dbt-docs compare train-lightgbm train-lstm drift-report mlflow-ui clean
 
 install:
 	pip install -r requirements.txt
@@ -18,6 +18,9 @@ lint:
 test:
 	pytest --cov=src/demandcast --cov-report=term-missing
 
+build:
+	python -m build
+
 ingest:
 	python -m demandcast.ingestion.download_rossmann
 
@@ -35,6 +38,18 @@ dbt-docs:
 
 compare:
 	python -m demandcast.evaluation.run_comparison
+
+train-lightgbm:
+	python -m demandcast.training.train --config config/models/lightgbm.yaml
+
+train-lstm:
+	python -m demandcast.training.train --config config/models/lstm.yaml
+
+drift-report:
+	python -m demandcast.monitoring.drift
+
+mlflow-ui:
+	mlflow ui --backend-store-uri sqlite:///mlflow.db
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +

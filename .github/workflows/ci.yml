@@ -26,3 +26,6 @@ jobs:
 
       - name: Test
         run: pytest --cov=src/demandcast --cov-report=term-missing
+
+      - name: Build
+        run: python -m build

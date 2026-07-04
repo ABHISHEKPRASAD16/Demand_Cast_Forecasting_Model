@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .eggs/
+build/
+dist/
 .venv/
 venv/
 .mypy_cache/
@@ -35,6 +37,9 @@ mlruns/
 mlartifacts/
 mlflow.db
 mlflow.db-*
+
+# Evidently drift reports (self-contained HTML, regenerated via `make drift-report`)
+reports/drift/*.html
 
 # Env / secrets
 .env
