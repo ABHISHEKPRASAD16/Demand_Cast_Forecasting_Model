@@ -33,6 +33,8 @@ profiles.yml
 # MLflow / experiment artifacts
 mlruns/
 mlartifacts/
+mlflow.db
+mlflow.db-*
 
 # Env / secrets
 .env

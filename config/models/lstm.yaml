@@ -1,0 +1,10 @@
+model_type: lstm
+test_weeks: 6
+cv_val_weeks: 6
+epochs: 15
+batch_size: 512
+lr: 0.001
+patience: 3
+embedding_dim: 8
+hidden_size: 64
+register_model: false

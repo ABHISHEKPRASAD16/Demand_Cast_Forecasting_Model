@@ -156,10 +156,12 @@ def train_lstm(
     batch_size: int = 256,
     lr: float = 1e-3,
     patience: int = 3,
+    embedding_dim: int = 8,
+    hidden_size: int = 64,
 ) -> tuple[LSTMForecaster, TrainingHistory]:
     """Train with early stopping on val_loss - the same principle as LightGBM's
     early stopping, just implemented by hand since PyTorch has no built-in."""
-    model = LSTMForecaster(num_stores)
+    model = LSTMForecaster(num_stores, embedding_dim=embedding_dim, hidden_size=hidden_size)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss_fn = nn.MSELoss()
 
