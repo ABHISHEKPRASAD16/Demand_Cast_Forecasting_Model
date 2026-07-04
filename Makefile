@@ -1,4 +1,4 @@
-.PHONY: install install-dev format lint test ingest dbt-run dbt-test dbt-docs clean
+.PHONY: install install-dev format lint test ingest dbt-run dbt-test dbt-docs compare clean
 
 install:
 	pip install -r requirements.txt
@@ -32,6 +32,9 @@ dbt-test:
 
 dbt-docs:
 	cd dbt/demandcast && dbt docs generate && dbt docs serve
+
+compare:
+	python -m demandcast.evaluation.run_comparison
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
